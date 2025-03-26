@@ -8,6 +8,8 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     wget \
     unzip \
+    gnupg \
+    ca-certificates \
     libglib2.0-0 \
     libnss3 \
     libgconf-2-4 \
@@ -17,14 +19,17 @@ RUN apt-get update && apt-get install -y \
     libxi6 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Chrome
-RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
-    && apt-get update \
-    && apt-get install -y google-chrome-stable \
+# Add Google Chrome's official signing key and repository
+RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub > /tmp/chrome-key.pub \
+    && install -D -m 644 /tmp/chrome-key.pub /etc/apt/keyrings/google-chrome-keyring.pub \
+    && echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome-keyring.pub] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+    && rm /tmp/chrome-key.pub
+
+# Install Google Chrome
+RUN apt-get update && apt-get install -y google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
 
-# Install ChromeDriver
+# Install ChromeDriver (version compatible with Chrome 123)
 RUN wget -O /tmp/chromedriver.zip https://chromedriver.storage.googleapis.com/123.0.6312.86/chromedriver_linux64.zip \
     && unzip /tmp/chromedriver.zip -d /usr/local/bin/ \
     && rm /tmp/chromedriver.zip \
@@ -37,7 +42,7 @@ COPY app.py .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Expose port (Render assigns dynamically, but we specify for clarity)
+# Expose port for Render
 EXPOSE 5000
 
 # Run the app
